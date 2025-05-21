@@ -79,6 +79,10 @@ pub struct CmdOptions {
     /// Use Alternate Injection if available
     #[arg(long, default_value_t = false)]
     pub alt_injection: bool,
+
+    /// Path to user's custom elf file
+    #[arg(long)]
+    pub custom_elf: String,
 }
 
 impl CmdOptions {

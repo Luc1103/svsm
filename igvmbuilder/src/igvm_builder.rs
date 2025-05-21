@@ -249,6 +249,8 @@ impl IgvmBuilder {
             vtom,
             use_alternate_injection: u8::from(self.options.alt_injection),
             is_qemu,
+            custom_elf_base: self.gpa_map.custom_elf.get_start(),
+            custom_elf_size: self.gpa_map.custom_elf.get_size() as u32,
             ..Default::default()
         })
     }
@@ -458,6 +460,13 @@ impl IgvmBuilder {
         self.add_data_pages_from_file(
             &self.options.kernel.clone(),
             self.gpa_map.kernel_elf.get_start(),
+            COMPATIBILITY_MASK.get(),
+        )?;
+
+        // Add the custom elf binary
+        self.add_data_pages_from_file(
+            &self.options.custom_elf.clone(),
+            self.gpa_map.custom_elf.get_start(),
             COMPATIBILITY_MASK.get(),
         )?;
 

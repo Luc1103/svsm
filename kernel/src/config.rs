@@ -96,6 +96,12 @@ impl<'a> SvsmConfig<'a> {
             None => self.fw_cfg.as_ref().unwrap().find_kernel_region(),
         }
     }
+    pub fn find_custom_region(&self) -> Result<MemoryRegion<PhysAddr>, SvsmError> {
+        match &self.igvm_params {
+            Some(igvm_params) => igvm_params.find_custom_region(),
+            None => Err(SvsmError::PlatformInit),
+        }
+    }
     pub fn page_state_change_required(&self) -> bool {
         match &self.igvm_params {
             Some(igvm_params) => igvm_params.page_state_change_required(),

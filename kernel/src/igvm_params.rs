@@ -121,6 +121,15 @@ impl IgvmParams<'_> {
         ))
     }
 
+    pub fn find_custom_region(&self) -> Result<MemoryRegion<PhysAddr>, SvsmError> {
+        let custom_start = PhysAddr::from(self.igvm_param_block.custom_elf_base);
+        let custom_size = self.igvm_param_block.custom_elf_size;
+        Ok(MemoryRegion::<PhysAddr>::new(
+            custom_start,
+            custom_size as usize,
+        ))
+    }
+
     pub fn reserved_kernel_area_size(&self) -> usize {
         self.igvm_param_block
             .kernel_reserved_size

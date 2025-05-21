@@ -313,6 +313,8 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
         if (launch_info.vtom != 0) && (launch_info.vtom != igvm_params.get_vtom()) {
             panic!("Launch VTOM does not match VTOM from IGVM parameters");
         }
+        let custom_region = igvm_params.find_custom_region().expect("Could not find custom region");
+        log::info!("Custom ELF region: [{:#x}, {:#x}]", custom_region.start(), custom_region.end());
         Some(igvm_params)
     } else {
         None

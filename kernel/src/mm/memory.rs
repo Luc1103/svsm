@@ -43,43 +43,12 @@ pub fn init_memory_map(
     let kernel_start = PhysAddr::from(launch_info.kernel_region_phys_start);
     let kernel_end = PhysAddr::from(launch_info.kernel_region_phys_end);
     let kernel_region = MemoryRegion::from_addresses(kernel_start, kernel_end);
+    let custom_region = config.find_custom_region()?;
 
-    // Remove SVSM memory from guest memory map
-    let mut i = 0;
-    while i < regions.len() {
-        // Check if the region overlaps with SVSM memory.
-        let region = regions[i];
-        if !region.overlap(&kernel_region) {
-            // Check the next region.
-            i += 1;
-            continue;
-        }
-
-        // 1. Remove the region.
-        regions.remove(i);
-
-        // 2. Insert a region up until the start of SVSM memory (if non-empty).
-        let region_before_start = region.start();
-        let region_before_end = kernel_region.start();
-        if region_before_start < region_before_end {
-            regions.insert(
-                i,
-                MemoryRegion::from_addresses(region_before_start, region_before_end),
-            );
-            i += 1;
-        }
-
-        // 3. Insert a region up after the end of SVSM memory (if non-empty).
-        let region_after_start = kernel_region.end();
-        let region_after_end = region.end();
-        if region_after_start < region_after_end {
-            regions.insert(
-                i,
-                MemoryRegion::from_addresses(region_after_start, region_after_end),
-            );
-            i += 1;
-        }
-    }
+    // Check if any regions overlap with SVSM kernel region
+    check_overlap_update_regions(&mut regions, &kernel_region);
+    // Check if any regions overlap with custom region
+    check_overlap_update_regions(&mut regions, &custom_region);
 
     log::info!("Guest Memory Regions:");
     for r in regions.iter() {
@@ -90,6 +59,45 @@ pub fn init_memory_map(
     *map = regions;
 
     Ok(())
+}
+
+fn check_overlap_update_regions(regions: &mut Vec<MemoryRegion<PhysAddr>>, reserved_region: &MemoryRegion<PhysAddr>) {
+    // Remove reserved region from guest memory map
+    let mut i = 0;
+    while i < regions.len() {
+        // Check if the region overlaps with reserved memory.
+        let region = regions[i];
+        if !region.overlap(&reserved_region) {
+            // Check the next region.
+            i += 1;
+            continue;
+        }
+
+        // 1. Remove the region.
+        regions.remove(i);
+
+        // 2. Insert a region up until the start of reserved memory (if non-empty).
+        let region_before_start = region.start();
+        let region_before_end = reserved_region.start();
+        if region_before_start < region_before_end {
+            regions.insert(
+                i,
+                MemoryRegion::from_addresses(region_before_start, region_before_end),
+            );
+            i += 1;
+        }
+
+        // 3. Insert a region up after the end of reserved memory (if non-empty).
+        let region_after_start = reserved_region.end();
+        let region_after_end = region.end();
+        if region_after_start < region_after_end {
+            regions.insert(
+                i,
+                MemoryRegion::from_addresses(region_after_start, region_after_end),
+            );
+            i += 1;
+        }
+    }
 }
 
 pub fn write_guest_memory_map(config: &SvsmConfig<'_>) -> Result<(), SvsmError> {
