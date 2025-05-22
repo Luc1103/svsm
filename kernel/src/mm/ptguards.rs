@@ -84,6 +84,11 @@ impl PerCPUPageMappingGuard {
         self.mapping.region().start()
     }
 
+    /// Returns the end virtual address associated with the guard.
+    pub fn virt_addr_end(&self) -> VirtAddr {
+        self.mapping.region().end()
+    }
+
     /// Creates a virtual contigous mapping for the given 4k physical pages which
     /// may not be contiguous in physical memory.
     ///

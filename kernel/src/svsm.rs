@@ -38,11 +38,11 @@ use svsm::mm::alloc::{memory_info, print_memory_info, root_mem_init};
 use svsm::mm::memory::init_memory_map;
 use svsm::mm::pagetable::paging_init;
 use svsm::mm::virtualrange::virt_log_usage;
-use svsm::mm::{init_kernel_mapping_info, FixedAddressMappingRange};
+use svsm::mm::{init_kernel_mapping_info, FixedAddressMappingRange, PerCPUPageMappingGuard};
 use svsm::platform;
 use svsm::platform::{init_capabilities, init_platform_type, SvsmPlatformCell, SVSM_PLATFORM};
 use svsm::requests::request_loop_main;
-use svsm::sev::secrets_page_mut;
+use svsm::sev::{secrets_page_mut, RMPFlags, utils::rmp_adjust_range_4k};
 use svsm::svsm_paging::{init_page_table, invalidate_early_boot_memory};
 use svsm::task::schedule_init;
 use svsm::task::{exec_user, start_kernel_task};
@@ -329,6 +329,28 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
 
     init_capabilities();
 
+    if let Some(igvm_params) = config.get_igvm_params() {
+        // Retrieves the physical address range for the custom binary and then converts to virtual address range
+        let custom_pregion = igvm_params.find_custom_region().expect("Custom ELF region not found");
+        let guard = PerCPUPageMappingGuard::create(custom_pregion.start(), custom_pregion.end(), 0).expect("Failed to create custom ELF region mapping");
+        let custom_vregion = MemoryRegion::from_addresses(guard.virt_addr(), guard.virt_addr_end());
+
+        // Load first the kernel ELF and update the loaded physical region
+        let custom_elf_entry = load_elf(custom_vregion).expect("Failed to load kernel ELF");
+        
+        // Remove VMPL 3 access to the custom ELF region
+        match rmp_adjust_range_4k(custom_vregion, RMPFlags::VMPL3 | RMPFlags::NONE) {
+            Ok(_) => log::info!("Removed VMPL 3 access to custom ELF region"),
+            Err(e) => panic!("Failed to remove VMPL 3 access to custom ELF region: {e:#?}"),
+        }
+    
+        // Give access to VMPL 2
+        match rmp_adjust_range_4k(custom_vregion, RMPFlags::VMPL2 | RMPFlags::RWX) {
+            Ok(_) => log::info!("Granted VMPL 2 access to custom ELF region"),
+            Err(e) => panic!("Failed to grant VMPL 2 access to custom ELF region: {e:#?}"),
+        }
+    }
+
     let cpus = config.load_cpu_info().expect("Failed to load ACPI tables");
 
     start_secondary_cpus(&**SVSM_PLATFORM, &cpus);
@@ -369,6 +391,25 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
     }
 
     cpu_idle_loop(cpu_index);
+}
+
+fn load_elf(
+    elf_region: MemoryRegion<VirtAddr>,
+) -> Result<VirtAddr, elf::ElfError> {
+    // Find the bounds of the kernel ELF and load it into the ELF parser
+    let elf_start = elf_region.start();
+    let elf_end = elf_region.end();
+    let elf_len = elf_end - elf_start;
+
+    let bytes = unsafe { slice::from_raw_parts(elf_start.bits() as *const u8, elf_len) };
+    let elf = elf::Elf64File::read(bytes).expect("Failed to read custom ELF");
+
+    let vaddr_alloc_info = elf.image_load_vaddr_alloc_info();
+    let vaddr_alloc_base = vaddr_alloc_info.range.vaddr_begin;
+
+    let entry = VirtAddr::from(elf.get_entry(vaddr_alloc_base));
+    log::info!("Successfully loaded custom ELF");
+    Ok(entry)
 }
 
 #[panic_handler]

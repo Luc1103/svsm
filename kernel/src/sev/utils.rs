@@ -190,6 +190,7 @@ pub fn raw_vmgexit() {
 }
 
 bitflags::bitflags! {
+    #[derive(Clone, Copy, Debug)]
     pub struct RMPFlags: u64 {
         const VMPL0 = 0;
         const VMPL1 = 1;
@@ -273,4 +274,11 @@ pub fn rmp_set_guest_vmsa(vaddr: VirtAddr) -> Result<(), SvsmError> {
 pub fn rmp_clear_guest_vmsa(vaddr: VirtAddr) -> Result<(), SvsmError> {
     rmp_revoke_guest_access(vaddr, PageSize::Regular)?;
     rmp_grant_guest_access(vaddr, PageSize::Regular)
+}
+
+pub fn rmp_adjust_range_4k(region: MemoryRegion<VirtAddr>, flags: RMPFlags) -> Result<(), SvsmError> {
+    for addr in region.iter_pages(PageSize::Regular) {
+        rmp_adjust(addr, flags, PageSize::Regular)?;
+    }
+    Ok(())
 }
