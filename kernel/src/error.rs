@@ -124,6 +124,8 @@ pub enum SvsmError {
     Virtio(VirtioError),
     /// Errors related to block devices.
     Block(BlockDeviceError),
+    /// Errors related to custom VMPLs
+    InvalidVMPL(u8),
 }
 
 impl From<ElfError> for SvsmError {

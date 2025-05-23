@@ -208,6 +208,20 @@ bitflags::bitflags! {
     }
 }
 
+impl TryFrom<u8> for RMPFlags {
+    type Error = SvsmError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(RMPFlags::VMPL0),
+            1 => Ok(RMPFlags::VMPL1),
+            2 => Ok(RMPFlags::VMPL2),
+            3 => Ok(RMPFlags::VMPL3),
+            _ => Err(SvsmError::InvalidVMPL(value)),
+        }
+    }
+}
+
 pub fn rmp_adjust(addr: VirtAddr, flags: RMPFlags, size: PageSize) -> Result<(), SvsmError> {
     let rcx: u64 = match size {
         PageSize::Regular => 0,

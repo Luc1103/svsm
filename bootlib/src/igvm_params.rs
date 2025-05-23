@@ -165,6 +165,8 @@ pub struct IgvmParamBlock {
     /// The size of the custom ELF file in bytes.
     pub custom_elf_size: u32,
 
+    /// VMPL for the custom region.
+    pub custom_elf_vmpl: u8,
 }
 
 /// The IGVM context page is a measured page that is used to specify the start

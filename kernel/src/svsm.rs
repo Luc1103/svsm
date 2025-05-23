@@ -334,20 +334,23 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
         let custom_pregion = igvm_params.find_custom_region().expect("Custom ELF region not found");
         let guard = PerCPUPageMappingGuard::create(custom_pregion.start(), custom_pregion.end(), 0).expect("Failed to create custom ELF region mapping");
         let custom_vregion = MemoryRegion::from_addresses(guard.virt_addr(), guard.virt_addr_end());
-
-        // Load first the kernel ELF and update the loaded physical region
-        let custom_elf_entry = load_elf(custom_vregion).expect("Failed to load kernel ELF");
         
+        // Load first the kernel ELF and update the loaded physical region
+        let _custom_elf_entry = load_elf(custom_vregion).expect("Failed to load kernel ELF");
+        
+        let custom_vmpl_u8 = igvm_params.get_custom_vmpl();
+        let custom_vmpl = RMPFlags::try_from(custom_vmpl_u8).expect("Invalid VMPL value");
+
         // Remove VMPL 3 access to the custom ELF region
         match rmp_adjust_range_4k(custom_vregion, RMPFlags::VMPL3 | RMPFlags::NONE) {
             Ok(_) => log::info!("Removed VMPL 3 access to custom ELF region"),
             Err(e) => panic!("Failed to remove VMPL 3 access to custom ELF region: {e:#?}"),
         }
     
-        // Give access to VMPL 2
-        match rmp_adjust_range_4k(custom_vregion, RMPFlags::VMPL2 | RMPFlags::RWX) {
-            Ok(_) => log::info!("Granted VMPL 2 access to custom ELF region"),
-            Err(e) => panic!("Failed to grant VMPL 2 access to custom ELF region: {e:#?}"),
+        // Give access to custom VMPL
+        match rmp_adjust_range_4k(custom_vregion, custom_vmpl| RMPFlags::RWX) {
+            Ok(_) => log::info!("Granted VMPL {custom_vmpl_u8} access to custom ELF region"),
+            Err(e) => panic!("Failed to grant VMPL {custom_vmpl_u8} access to custom ELF region: {e:#?}"),
         }
     }
 

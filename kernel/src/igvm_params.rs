@@ -130,6 +130,10 @@ impl IgvmParams<'_> {
         ))
     }
 
+    pub fn get_custom_vmpl(&self) -> u8 {
+        self.igvm_param_block.custom_elf_vmpl
+    }
+
     pub fn reserved_kernel_area_size(&self) -> usize {
         self.igvm_param_block
             .kernel_reserved_size

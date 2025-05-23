@@ -230,6 +230,9 @@ impl IgvmBuilder {
             _ => 0,
         };
 
+        let custom_vmpl: u8 = 2;
+        assert!(custom_vmpl <= 3);
+
         // Most of the parameter block can be initialised with constants.
         Ok(IgvmParamBlock {
             param_area_size,
@@ -251,6 +254,7 @@ impl IgvmBuilder {
             is_qemu,
             custom_elf_base: self.gpa_map.custom_elf.get_start(),
             custom_elf_size: self.gpa_map.custom_elf.get_size() as u32,
+            custom_elf_vmpl: custom_vmpl,
             ..Default::default()
         })
     }
