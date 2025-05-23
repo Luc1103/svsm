@@ -407,6 +407,23 @@ fn load_elf(
     let vaddr_alloc_info = elf.image_load_vaddr_alloc_info();
     let vaddr_alloc_base = vaddr_alloc_info.range.vaddr_begin;
 
+    // Apply relocations, if any
+    if let Some(dyn_relocs) =
+        elf.apply_dyn_relas(elf::Elf64X86RelocProcessor::new(), vaddr_alloc_base)?
+    {
+        log::info!("Applying relocations");
+        for reloc in dyn_relocs {
+            let Some(reloc) = reloc? else {
+                continue;
+            };
+            let dst = unsafe { slice::from_raw_parts_mut(reloc.dst as *mut u8, reloc.value_len) };
+            let src = &reloc.value[..reloc.value_len];
+            dst.copy_from_slice(src)
+        }
+    } else {
+        log::info!("No relocations found");
+    }
+
     let entry = VirtAddr::from(elf.get_entry(vaddr_alloc_base));
     log::info!("Successfully loaded custom ELF");
     Ok(entry)
