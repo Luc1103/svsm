@@ -24,6 +24,10 @@ pub struct CmdOptions {
     #[arg(short, long, value_enum, default_value_t = Platform::SevSnp)]
     pub platform: Platform,
 
+    /// File to output the measurement to.
+    #[arg(long)]
+    pub digest_file: String,
+
     /// Determine how to pages that contain only zeroes in the IGVM file.
     ///
     /// When true, zero pages are measured using the native zero page type

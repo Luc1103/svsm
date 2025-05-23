@@ -185,6 +185,7 @@ def parse_igvm_config(target, config):
         "measure-native-zeroes": config.get("measure-native-zeroes", False),
         "check-kvm": config.get("check-kvm", False),
         "custom-elf": config.get("custom-elf", None),
+        "digest-file": config.get("digest-file", None),
     }
 
     return igvm_config
@@ -591,6 +592,9 @@ def build_igvm_file_one(args, helpers, igvm_config, parts_config):
         command.append("--check-kvm")
     if igvm_config["measure-native-zeroes"]:
         command.append("--native-zero")
+
+    command.append("--digest-file")
+    command.append(igvm_config["digest-file"])
 
     command.append(output_path)
 

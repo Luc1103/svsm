@@ -81,6 +81,19 @@ fn measure_command(
             "\n==============================================================================================================="
         );
         print!("igvmmeasure '{}'\nLaunch Digest: ", options.input);
+        // Create parent directories if they don't exist
+        if let Some(parent) = std::path::Path::new(&options.digest_file).parent() {
+            fs::create_dir_all(parent).inspect_err(|_| {
+            eprintln!("Failed to create parent directories for digest file {}", options.digest_file);
+            })?;
+        }
+        let mut file = File::create(&options.digest_file).inspect_err(|_| {
+            eprintln!("Failed to create digest file {}", options.digest_file);
+        })?;
+        for val in measure.digest() {
+            write!(file, "{:02X}", val)?;
+        }
+        writeln!(file)?;
     }
 
     measure
