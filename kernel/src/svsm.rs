@@ -10,6 +10,9 @@
 extern crate alloc;
 
 use bootlib::kernel_launch::KernelLaunchInfo;
+use svsm::greq::pld_report::SnpReportResponse;
+use svsm::greq::services::get_regular_report;
+use zerocopy::FromBytes;
 use core::arch::global_asm;
 use core::panic::PanicInfo;
 use core::slice;
@@ -382,6 +385,9 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
         crate::test_main();
     }
 
+    // Print the launch digest to confirm the correct set up.
+    print_launch_digest();
+
     match exec_user("/init", opendir("/").expect("Failed to find FS root")) {
         Ok(_) => (),
         Err(e) => log::info!("Failed to launch /init: {e:#?}"),
@@ -430,6 +436,26 @@ fn load_elf(
     let entry = VirtAddr::from(elf.get_entry(vaddr_alloc_base));
     log::info!("Successfully loaded custom ELF");
     Ok(entry)
+}
+
+fn print_launch_digest() {
+    // Get and print out the SNP report measurement.
+    let mut buf = [0u8; core::mem::size_of::<SnpReportResponse>()];
+    let size = get_regular_report(&mut buf).expect("Failed to get regular report");
+    if size != buf.len() {
+        panic!("SNP report response size mismatch: expected {}, got {}", buf.len(), size);
+    }
+    let (resp, _) = SnpReportResponse::ref_from_prefix(&buf).expect("Failed to parse SNP report response");
+    resp.validate().expect("SNP report response validation failed");
+    let measurement = resp.measurement();
+    let mut hex_str = [0u8; 48 * 2];
+    for (i, byte) in measurement.iter().enumerate() {
+        let (fst, snd) = (byte >> 4, byte & 0x0F);
+        hex_str[i * 2] = b"0123456789ABCDEF"[fst as usize];
+        hex_str[i * 2 + 1] = b"0123456789ABCDEF"[snd as usize];
+    }
+    let measurement_str = core::str::from_utf8(&hex_str).unwrap();
+    log::info!("Launch digest:\n{}", measurement_str);
 }
 
 #[panic_handler]
