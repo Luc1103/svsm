@@ -160,13 +160,16 @@ pub struct IgvmParamBlock {
     pub vtom: u64,
 
     /// Guest physical address of the base of the custom ELF file.
-    pub custom_elf_base: u64,
+    pub custom1_elf_base: u64,
+    pub custom2_elf_base: u64,
 
     /// The size of the custom ELF file in bytes.
-    pub custom_elf_size: u32,
+    pub custom1_elf_size: u32,
+    pub custom2_elf_size: u32,
 
     /// VMPL for the custom region.
-    pub custom_elf_vmpl: u8,
+    pub custom1_elf_vmpl: u8,
+    pub custom2_elf_vmpl: u8,
 }
 
 /// The IGVM context page is a measured page that is used to specify the start

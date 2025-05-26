@@ -184,7 +184,8 @@ def parse_igvm_config(target, config):
         "measure": config.get("measure", "print"),
         "measure-native-zeroes": config.get("measure-native-zeroes", False),
         "check-kvm": config.get("check-kvm", False),
-        "custom-elf": config.get("custom-elf", None),
+        "custom1-elf": config.get("custom1-elf", None),
+        "custom2-elf": config.get("custom2-elf", None),
         "digest-file": config.get("digest-file", None),
     }
 
@@ -550,7 +551,8 @@ def build_igvm_file_one(args, helpers, igvm_config, parts_config):
         "--policy", igvm_config["policy"],
         "--stage2", parts_config["stage2"],
         "--kernel", parts_config["kernel"],
-        "--custom-elf", igvm_config["custom-elf"],
+        "--custom1-elf", igvm_config["custom1-elf"],
+        "--custom2-elf", igvm_config["custom2-elf"],
     ]
 
     if parts_config["tdx-stage1"]:

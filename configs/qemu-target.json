@@ -10,7 +10,8 @@
             "policy": "0x30000",
             "measure": "print",
             "check-kvm": true,
-            "custom-elf": "bin/custom",
+            "custom1-elf": "bin/custom",
+            "custom2-elf": "bin/custom",
             "digest-file": "measure/digest.txt"
         }
     },

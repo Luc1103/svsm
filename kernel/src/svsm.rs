@@ -316,8 +316,10 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
         if (launch_info.vtom != 0) && (launch_info.vtom != igvm_params.get_vtom()) {
             panic!("Launch VTOM does not match VTOM from IGVM parameters");
         }
-        let custom_region = igvm_params.find_custom_region().expect("Could not find custom region");
-        log::info!("Custom ELF region: [{:#x}, {:#x}]", custom_region.start(), custom_region.end());
+        let custom1_region = igvm_params.find_custom1_region().expect("Could not find custom1 region");
+        let custom2_region = igvm_params.find_custom2_region().expect("Could not find custom2 region");
+        log::info!("custom1 ELF region: [{:#x}, {:#x}]", custom1_region.start(), custom1_region.end());
+        log::info!("custom2 ELF region: [{:#x}, {:#x}]", custom2_region.start(), custom2_region.end());
         Some(igvm_params)
     } else {
         None
@@ -333,27 +335,45 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
     init_capabilities();
 
     if let Some(igvm_params) = config.get_igvm_params() {
-        // Retrieves the physical address range for the custom binary and then converts to virtual address range
-        let custom_pregion = igvm_params.find_custom_region().expect("Custom ELF region not found");
-        let guard = PerCPUPageMappingGuard::create(custom_pregion.start(), custom_pregion.end(), 0).expect("Failed to create custom ELF region mapping");
-        let custom_vregion = MemoryRegion::from_addresses(guard.virt_addr(), guard.virt_addr_end());
+        // Retrieves the physical address range for the custom1 binary and then converts to virtual address range
+        let custom1_pregion = igvm_params.find_custom1_region().expect("custom1 ELF region not found");
+        let guard = PerCPUPageMappingGuard::create(custom1_pregion.start(), custom1_pregion.end(), 0).expect("Failed to create custom1 ELF region mapping");
+        let custom1_vregion = MemoryRegion::from_addresses(guard.virt_addr(), guard.virt_addr_end());
         
         // Load first the kernel ELF and update the loaded physical region
-        let _custom_elf_entry = load_elf(custom_vregion).expect("Failed to load kernel ELF");
+        let _custom1_elf_entry = load_elf(custom1_vregion).expect("Failed to load kernel ELF");
         
-        let custom_vmpl_u8 = igvm_params.get_custom_vmpl();
-        let custom_vmpl = RMPFlags::try_from(custom_vmpl_u8).expect("Invalid VMPL value");
+        let custom1_vmpl_u8 = igvm_params.get_custom1_vmpl();
+        let custom1_vmpl = RMPFlags::try_from(custom1_vmpl_u8).expect("Invalid VMPL value");
 
-        // Remove VMPL 3 access to the custom ELF region
-        match rmp_adjust_range_4k(custom_vregion, RMPFlags::VMPL3 | RMPFlags::NONE) {
-            Ok(_) => log::info!("Removed VMPL 3 access to custom ELF region"),
-            Err(e) => panic!("Failed to remove VMPL 3 access to custom ELF region: {e:#?}"),
+        // Remove VMPL 3 access to the custom1 ELF region
+        match rmp_adjust_range_4k(custom1_vregion, RMPFlags::VMPL3 | RMPFlags::NONE) {
+            Ok(_) => log::info!("Removed VMPL 3 access to custom1 ELF region"),
+            Err(e) => panic!("Failed to remove VMPL 3 access to custom1 ELF region: {e:#?}"),
         }
     
-        // Give access to custom VMPL
-        match rmp_adjust_range_4k(custom_vregion, custom_vmpl| RMPFlags::RWX) {
-            Ok(_) => log::info!("Granted VMPL {custom_vmpl_u8} access to custom ELF region"),
-            Err(e) => panic!("Failed to grant VMPL {custom_vmpl_u8} access to custom ELF region: {e:#?}"),
+        // Give access to custom1 VMPL
+        match rmp_adjust_range_4k(custom1_vregion, custom1_vmpl| RMPFlags::RWX) {
+            Ok(_) => log::info!("Granted VMPL {custom1_vmpl_u8} access to custom1 ELF region"),
+            Err(e) => panic!("Failed to grant VMPL {custom1_vmpl_u8} access to custom1 ELF region: {e:#?}"),
+        }
+
+        let custom2_pregion = igvm_params.find_custom2_region().expect("custom2 ELF region not found");
+        let guard = PerCPUPageMappingGuard::create(custom2_pregion.start(), custom2_pregion.end(), 0).expect("Failed to create custom2 ELF region mapping");
+        let custom2_vregion = MemoryRegion::from_addresses(guard.virt_addr(), guard.virt_addr_end());
+        // Load second the custom2 ELF and update the loaded physical region
+        let _custom2_elf_entry = load_elf(custom2_vregion).expect("Failed to load custom2 ELF");
+        let custom2_vmpl_u8 = igvm_params.get_custom2_vmpl();
+        let custom2_vmpl = RMPFlags::try_from(custom2_vmpl_u8).expect("Invalid VMPL value");
+        // Remove VMPL 3 access to the custom2 ELF region
+        match rmp_adjust_range_4k(custom2_vregion, RMPFlags::VMPL3 | RMPFlags::NONE) {
+            Ok(_) => log::info!("Removed VMPL 3 access to custom2 ELF region"),
+            Err(e) => panic!("Failed to remove VMPL 3 access to custom2 ELF region: {e:#?}"),
+        }
+        // Give access to custom2 VMPL
+        match rmp_adjust_range_4k(custom2_vregion, custom2_vmpl | RMPFlags::RWX) {
+            Ok(_) => log::info!("Granted VMPL {custom2_vmpl_u8} access to custom2 ELF region"),
+            Err(e) => panic!("Failed to grant VMPL {custom2_vmpl_u8} access to custom2 ELF region: {e:#?}"),
         }
     }
 
@@ -411,7 +431,7 @@ fn load_elf(
     let elf_len = elf_end - elf_start;
 
     let bytes = unsafe { slice::from_raw_parts(elf_start.bits() as *const u8, elf_len) };
-    let elf = elf::Elf64File::read(bytes).expect("Failed to read custom ELF");
+    let elf = elf::Elf64File::read(bytes).expect("Failed to read ELF");
 
     let vaddr_alloc_info = elf.image_load_vaddr_alloc_info();
     let vaddr_alloc_base = vaddr_alloc_info.range.vaddr_begin;
@@ -434,7 +454,7 @@ fn load_elf(
     }
 
     let entry = VirtAddr::from(elf.get_entry(vaddr_alloc_base));
-    log::info!("Successfully loaded custom ELF");
+    log::info!("Successfully loaded ELF");
     Ok(entry)
 }
 

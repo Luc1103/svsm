@@ -121,17 +121,30 @@ impl IgvmParams<'_> {
         ))
     }
 
-    pub fn find_custom_region(&self) -> Result<MemoryRegion<PhysAddr>, SvsmError> {
-        let custom_start = PhysAddr::from(self.igvm_param_block.custom_elf_base);
-        let custom_size = self.igvm_param_block.custom_elf_size;
+    pub fn find_custom1_region(&self) -> Result<MemoryRegion<PhysAddr>, SvsmError> {
+        let custom1_start = PhysAddr::from(self.igvm_param_block.custom1_elf_base);
+        let custom1_size = self.igvm_param_block.custom1_elf_size;
         Ok(MemoryRegion::<PhysAddr>::new(
-            custom_start,
-            custom_size as usize,
+            custom1_start,
+            custom1_size as usize,
         ))
     }
 
-    pub fn get_custom_vmpl(&self) -> u8 {
-        self.igvm_param_block.custom_elf_vmpl
+    pub fn find_custom2_region(&self) -> Result<MemoryRegion<PhysAddr>, SvsmError> {
+        let custom2_start = PhysAddr::from(self.igvm_param_block.custom2_elf_base);
+        let custom2_size = self.igvm_param_block.custom2_elf_size;
+        Ok(MemoryRegion::<PhysAddr>::new(
+            custom2_start,
+            custom2_size as usize,
+        ))
+    }
+
+    pub fn get_custom1_vmpl(&self) -> u8 {
+        self.igvm_param_block.custom1_elf_vmpl
+    }
+
+    pub fn get_custom2_vmpl(&self) -> u8 {
+        self.igvm_param_block.custom2_elf_vmpl
     }
 
     pub fn reserved_kernel_area_size(&self) -> usize {

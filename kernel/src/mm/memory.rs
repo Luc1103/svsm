@@ -43,12 +43,15 @@ pub fn init_memory_map(
     let kernel_start = PhysAddr::from(launch_info.kernel_region_phys_start);
     let kernel_end = PhysAddr::from(launch_info.kernel_region_phys_end);
     let kernel_region = MemoryRegion::from_addresses(kernel_start, kernel_end);
-    let custom_region = config.find_custom_region()?;
+    let custom1_region = config.find_custom1_region()?;
+    let custom2_region = config.find_custom2_region()?;
 
     // Check if any regions overlap with SVSM kernel region
     check_overlap_update_regions(&mut regions, &kernel_region);
-    // Check if any regions overlap with custom region
-    check_overlap_update_regions(&mut regions, &custom_region);
+    // Check if any regions overlap with custom1 region
+    check_overlap_update_regions(&mut regions, &custom1_region);
+    // Check if any regions overlap with custom2 region
+    check_overlap_update_regions(&mut regions, &custom2_region);
 
     log::info!("Guest Memory Regions:");
     for r in regions.iter() {

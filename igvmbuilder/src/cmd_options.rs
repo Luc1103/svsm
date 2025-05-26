@@ -80,9 +80,13 @@ pub struct CmdOptions {
     #[arg(long, default_value_t = false)]
     pub alt_injection: bool,
 
-    /// Path to user's custom elf file
+    /// Path to user's custom1 elf file
     #[arg(long)]
-    pub custom_elf: String,
+    pub custom1_elf: String,
+
+    /// Path to user's custom2 elf file
+    #[arg(long)]
+    pub custom2_elf: String,
 }
 
 impl CmdOptions {

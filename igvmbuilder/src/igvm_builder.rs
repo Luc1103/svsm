@@ -230,8 +230,10 @@ impl IgvmBuilder {
             _ => 0,
         };
 
-        let custom_vmpl: u8 = 2;
-        assert!(custom_vmpl <= 3);
+        let custom1_vmpl: u8 = 2;
+        let custom2_vmpl: u8 = 2;
+        assert!(custom1_vmpl <= 3);
+        assert!(custom2_vmpl <= 3);
 
         // Most of the parameter block can be initialised with constants.
         Ok(IgvmParamBlock {
@@ -252,9 +254,12 @@ impl IgvmBuilder {
             vtom,
             use_alternate_injection: u8::from(self.options.alt_injection),
             is_qemu,
-            custom_elf_base: self.gpa_map.custom_elf.get_start(),
-            custom_elf_size: self.gpa_map.custom_elf.get_size() as u32,
-            custom_elf_vmpl: custom_vmpl,
+            custom1_elf_base: self.gpa_map.custom1_elf.get_start(),
+            custom2_elf_base: self.gpa_map.custom2_elf.get_start(),
+            custom1_elf_size: self.gpa_map.custom1_elf.get_size() as u32,
+            custom2_elf_size: self.gpa_map.custom2_elf.get_size() as u32,
+            custom1_elf_vmpl: custom1_vmpl,
+            custom2_elf_vmpl: custom2_vmpl,
             ..Default::default()
         })
     }
@@ -467,13 +472,20 @@ impl IgvmBuilder {
             COMPATIBILITY_MASK.get(),
         )?;
 
-        // Add the custom elf binary
+        // Add the custom1 elf binary
         self.add_data_pages_from_file(
-            &self.options.custom_elf.clone(),
-            self.gpa_map.custom_elf.get_start(),
+            &self.options.custom1_elf.clone(),
+            self.gpa_map.custom1_elf.get_start(),
             COMPATIBILITY_MASK.get(),
         )?;
 
+        // Add the custom2 elf binary
+        self.add_data_pages_from_file(
+            &self.options.custom2_elf.clone(),
+            self.gpa_map.custom2_elf.get_start(),
+            COMPATIBILITY_MASK.get(),
+        )?;
+        
         if COMPATIBILITY_MASK.contains(SNP_COMPATIBILITY_MASK) {
             // CPUID page
             let cpuid_page = SnpCpuidPage::new()?;

@@ -73,7 +73,8 @@ pub struct GpaMap {
     pub kernel: GpaRange,
     pub vmsa: GpaRange,
     pub init_page_tables: GpaRange,
-    pub custom_elf: GpaRange,
+    pub custom1_elf: GpaRange,
+    pub custom2_elf: GpaRange,
 }
 
 impl GpaMap {
@@ -140,8 +141,10 @@ impl GpaMap {
         };
 
         // Size of the custom ELF file must be aligned to 4KB
-        let custom_elf_len = Self::get_metadata(&options.custom_elf)?.len().next_multiple_of(PAGE_SIZE_4K) as usize;
-        let custom_elf = GpaRange::new(kernel.get_end(), custom_elf_len as u64)?;
+        let custom1_elf_len = Self::get_metadata(&options.custom1_elf)?.len().next_multiple_of(PAGE_SIZE_4K) as usize;
+        let custom2_elf_len = Self::get_metadata(&options.custom2_elf)?.len().next_multiple_of(PAGE_SIZE_4K) as usize;
+        let custom1_elf = GpaRange::new(kernel.get_end(), custom1_elf_len as u64)?;
+        let custom2_elf = GpaRange::new(custom1_elf.get_end(), custom2_elf_len as u64)?;
 
         let igvm_param_block = GpaRange::new_page(kernel_fs.get_end())?;
         let general_params = GpaRange::new_page(igvm_param_block.get_end())?;
@@ -187,7 +190,8 @@ impl GpaMap {
             kernel,
             vmsa,
             init_page_tables: GpaRange::new(0x10000, 2 * PAGE_SIZE_4K)?,
-            custom_elf,
+            custom1_elf,
+            custom2_elf,
         };
         if options.verbose {
             println!("GPA Map: {gpa_map:#X?}");
