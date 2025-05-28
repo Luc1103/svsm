@@ -12,8 +12,10 @@ extern crate alloc;
 use bootlib::kernel_launch::KernelLaunchInfo;
 use svsm::greq::pld_report::SnpReportResponse;
 use svsm::greq::services::get_regular_report;
+use svsm::sev::{pvalidate_range, PvalidateOp};
 use zerocopy::FromBytes;
 use core::arch::global_asm;
+use core::arch::x86_64::_rdtsc;
 use core::panic::PanicInfo;
 use core::slice;
 use cpuarch::snp_cpuid::SnpCpuidTable;
@@ -302,6 +304,7 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
     // Uncomment the line below if you want to wait for
     // a remote GDB connection
     //debug_break();
+    let start = unsafe { _rdtsc() };
 
     SVSM_PLATFORM
         .env_setup_svsm()
@@ -317,8 +320,8 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
             panic!("Launch VTOM does not match VTOM from IGVM parameters");
         }
         let custom1_region = igvm_params.find_custom1_region().expect("Could not find custom1 region");
-        let custom2_region = igvm_params.find_custom2_region().expect("Could not find custom2 region");
         log::info!("custom1 ELF region: [{:#x}, {:#x}]", custom1_region.start(), custom1_region.end());
+        let custom2_region = igvm_params.find_custom2_region().expect("Could not find custom2 region");
         log::info!("custom2 ELF region: [{:#x}, {:#x}]", custom2_region.start(), custom2_region.end());
         Some(igvm_params)
     } else {
@@ -339,9 +342,10 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
         let custom1_pregion = igvm_params.find_custom1_region().expect("custom1 ELF region not found");
         let guard = PerCPUPageMappingGuard::create(custom1_pregion.start(), custom1_pregion.end(), 0).expect("Failed to create custom1 ELF region mapping");
         let custom1_vregion = MemoryRegion::from_addresses(guard.virt_addr(), guard.virt_addr_end());
-        
-        // Load first the kernel ELF and update the loaded physical region
-        let _custom1_elf_entry = load_elf(custom1_vregion).expect("Failed to load kernel ELF");
+        match pvalidate_range(custom1_vregion, PvalidateOp::Valid) {
+            Ok(_) => log::info!("Pvalidated custom1 ELF region"),
+            Err(e) => panic!("Failed to pvalidate custom1 ELF region: {e:#?}"),
+        }
         
         let custom1_vmpl_u8 = igvm_params.get_custom1_vmpl();
         let custom1_vmpl = RMPFlags::try_from(custom1_vmpl_u8).expect("Invalid VMPL value");
@@ -361,8 +365,10 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
         let custom2_pregion = igvm_params.find_custom2_region().expect("custom2 ELF region not found");
         let guard = PerCPUPageMappingGuard::create(custom2_pregion.start(), custom2_pregion.end(), 0).expect("Failed to create custom2 ELF region mapping");
         let custom2_vregion = MemoryRegion::from_addresses(guard.virt_addr(), guard.virt_addr_end());
-        // Load second the custom2 ELF and update the loaded physical region
-        let _custom2_elf_entry = load_elf(custom2_vregion).expect("Failed to load custom2 ELF");
+        match pvalidate_range(custom2_vregion, PvalidateOp::Valid) {
+            Ok(_) => log::info!("Pvalidated custom2 ELF region"),
+            Err(e) => panic!("Failed to pvalidate custom2 ELF region: {e:#?}"),
+        }
         let custom2_vmpl_u8 = igvm_params.get_custom2_vmpl();
         let custom2_vmpl = RMPFlags::try_from(custom2_vmpl_u8).expect("Invalid VMPL value");
         // Remove VMPL 3 access to the custom2 ELF region
@@ -403,6 +409,19 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
             crate::testutils::set_qemu_test_env();
         }
         crate::test_main();
+    }
+
+    let end = unsafe { _rdtsc() };
+    let elapsed = end - start;
+    log::info!(
+        "Boot time: {}",
+        elapsed
+    );
+
+    // End here so we can run again
+    unsafe {
+        let exit_code: u8 = 0; // Exit code (0 means success)
+        core::arch::asm!("out dx, al", in("dx") 0xf4, in("al") exit_code);
     }
 
     // Print the launch digest to confirm the correct set up.

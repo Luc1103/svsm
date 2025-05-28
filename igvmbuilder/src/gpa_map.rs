@@ -141,8 +141,8 @@ impl GpaMap {
         };
 
         // Size of the custom ELF file must be aligned to 4KB
-        let custom1_elf_len = Self::get_metadata(&options.custom1_elf)?.len().next_multiple_of(PAGE_SIZE_4K) as usize;
-        let custom2_elf_len = Self::get_metadata(&options.custom2_elf)?.len().next_multiple_of(PAGE_SIZE_4K) as usize;
+        let custom1_elf_len = 0x800000;
+        let custom2_elf_len = 0x800000;
         let custom1_elf = GpaRange::new(kernel.get_end(), custom1_elf_len as u64)?;
         let custom2_elf = GpaRange::new(custom1_elf.get_end(), custom2_elf_len as u64)?;
 

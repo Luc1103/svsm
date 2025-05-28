@@ -472,19 +472,18 @@ impl IgvmBuilder {
             COMPATIBILITY_MASK.get(),
         )?;
 
-        // Add the custom1 elf binary
-        self.add_data_pages_from_file(
-            &self.options.custom1_elf.clone(),
-            self.gpa_map.custom1_elf.get_start(),
-            COMPATIBILITY_MASK.get(),
-        )?;
-
-        // Add the custom2 elf binary
-        self.add_data_pages_from_file(
-            &self.options.custom2_elf.clone(),
-            self.gpa_map.custom2_elf.get_start(),
-            COMPATIBILITY_MASK.get(),
-        )?;
+        self.directives.push(IgvmDirectiveHeader::RequiredMemory {
+            gpa: self.gpa_map.custom1_elf.get_start(),
+            compatibility_mask: COMPATIBILITY_MASK.get() & !VSM_COMPATIBILITY_MASK,
+            number_of_bytes: self.gpa_map.custom1_elf.get_size() as u32,
+            vtl2_protectable: false,
+        });
+        self.directives.push(IgvmDirectiveHeader::RequiredMemory {
+            gpa: self.gpa_map.custom2_elf.get_start(),
+            compatibility_mask: COMPATIBILITY_MASK.get() & !VSM_COMPATIBILITY_MASK,
+            number_of_bytes: self.gpa_map.custom2_elf.get_size() as u32,
+            vtl2_protectable: false,
+        });
         
         if COMPATIBILITY_MASK.contains(SNP_COMPATIBILITY_MASK) {
             // CPUID page
