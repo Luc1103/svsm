@@ -452,13 +452,13 @@ fn validate_custom_region(region: MemoryRegion<PhysAddr>, vmpl_u8: u8) {
     let vmpl = RMPFlags::try_from(vmpl_u8).expect("Invalid VMPL value");
 
     // Remove VMPL 3 access to the custom1 ELF region
-    match rmp_adjust_range_4k(region, RMPFlags::VMPL3 | RMPFlags::NONE) {
+    match rmp_adjust_range_4k(vregion, RMPFlags::VMPL3 | RMPFlags::NONE) {
         Ok(_) => log::info!("Removed VMPL 3 access to custom1 ELF region"),
         Err(e) => panic!("Failed to remove VMPL 3 access to custom1 ELF region: {e:#?}"),
     }
 
     // Give access to custom1 VMPL
-    match rmp_adjust_range_4k(region, vmpl| RMPFlags::RWX) {
+    match rmp_adjust_range_4k(vregion, vmpl| RMPFlags::RWX) {
         Ok(_) => log::info!("Granted VMPL {vmpl_u8} access to region"),
         Err(e) => panic!("Failed to grant VMPL {vmpl_u8} access to region: {e:#?}"),
     }
