@@ -338,49 +338,13 @@ pub extern "C" fn svsm_main(cpu_index: usize) {
     init_capabilities();
 
     if let Some(igvm_params) = config.get_igvm_params() {
-        // Retrieves the physical address range for the custom1 binary and then converts to virtual address range
-        let custom1_pregion = igvm_params.find_custom1_region().expect("custom1 ELF region not found");
-        let guard = PerCPUPageMappingGuard::create(custom1_pregion.start(), custom1_pregion.end(), 0).expect("Failed to create custom1 ELF region mapping");
-        let custom1_vregion = MemoryRegion::from_addresses(guard.virt_addr(), guard.virt_addr_end());
-        match pvalidate_range(custom1_vregion, PvalidateOp::Valid) {
-            Ok(_) => log::info!("Pvalidated custom1 ELF region"),
-            Err(e) => panic!("Failed to pvalidate custom1 ELF region: {e:#?}"),
-        }
-        
-        let custom1_vmpl_u8 = igvm_params.get_custom1_vmpl();
-        let custom1_vmpl = RMPFlags::try_from(custom1_vmpl_u8).expect("Invalid VMPL value");
+        // let custom1_pregion = igvm_params.find_custom1_region().expect("custom1 ELF region not found");
+        // let custom1_vmpl_u8 = igvm_params.get_custom1_vmpl();
+        // validate_custom_region(custom1_pregion, custom1_vmpl_u8);
 
-        // Remove VMPL 3 access to the custom1 ELF region
-        match rmp_adjust_range_4k(custom1_vregion, RMPFlags::VMPL3 | RMPFlags::NONE) {
-            Ok(_) => log::info!("Removed VMPL 3 access to custom1 ELF region"),
-            Err(e) => panic!("Failed to remove VMPL 3 access to custom1 ELF region: {e:#?}"),
-        }
-    
-        // Give access to custom1 VMPL
-        match rmp_adjust_range_4k(custom1_vregion, custom1_vmpl| RMPFlags::RWX) {
-            Ok(_) => log::info!("Granted VMPL {custom1_vmpl_u8} access to custom1 ELF region"),
-            Err(e) => panic!("Failed to grant VMPL {custom1_vmpl_u8} access to custom1 ELF region: {e:#?}"),
-        }
-
-        let custom2_pregion = igvm_params.find_custom2_region().expect("custom2 ELF region not found");
-        let guard = PerCPUPageMappingGuard::create(custom2_pregion.start(), custom2_pregion.end(), 0).expect("Failed to create custom2 ELF region mapping");
-        let custom2_vregion = MemoryRegion::from_addresses(guard.virt_addr(), guard.virt_addr_end());
-        match pvalidate_range(custom2_vregion, PvalidateOp::Valid) {
-            Ok(_) => log::info!("Pvalidated custom2 ELF region"),
-            Err(e) => panic!("Failed to pvalidate custom2 ELF region: {e:#?}"),
-        }
-        let custom2_vmpl_u8 = igvm_params.get_custom2_vmpl();
-        let custom2_vmpl = RMPFlags::try_from(custom2_vmpl_u8).expect("Invalid VMPL value");
-        // Remove VMPL 3 access to the custom2 ELF region
-        match rmp_adjust_range_4k(custom2_vregion, RMPFlags::VMPL3 | RMPFlags::NONE) {
-            Ok(_) => log::info!("Removed VMPL 3 access to custom2 ELF region"),
-            Err(e) => panic!("Failed to remove VMPL 3 access to custom2 ELF region: {e:#?}"),
-        }
-        // Give access to custom2 VMPL
-        match rmp_adjust_range_4k(custom2_vregion, custom2_vmpl | RMPFlags::RWX) {
-            Ok(_) => log::info!("Granted VMPL {custom2_vmpl_u8} access to custom2 ELF region"),
-            Err(e) => panic!("Failed to grant VMPL {custom2_vmpl_u8} access to custom2 ELF region: {e:#?}"),
-        }
+        // let custom2_pregion = igvm_params.find_custom2_region().expect("custom2 ELF region not found");
+        // let custom2_vmpl_u8 = igvm_params.get_custom2_vmpl();
+        // validate_custom_region(custom2_pregion, custom2_vmpl_u8);
     }
 
     let cpus = config.load_cpu_info().expect("Failed to load ACPI tables");
@@ -475,6 +439,29 @@ fn load_elf(
     let entry = VirtAddr::from(elf.get_entry(vaddr_alloc_base));
     log::info!("Successfully loaded ELF");
     Ok(entry)
+}
+
+fn validate_custom_region(region: MemoryRegion<PhysAddr>, vmpl_u8: u8) {
+    let guard = PerCPUPageMappingGuard::create(region.start(), region.end(), 0).expect("Failed to create region mapping");
+    let vregion = MemoryRegion::from_addresses(guard.virt_addr(), guard.virt_addr_end());
+    match pvalidate_range(vregion, PvalidateOp::Valid) {
+        Ok(_) => log::info!("Pvalidated region"),
+        Err(e) => panic!("Failed to pvalidate region: {e:#?}"),
+    }
+    
+    let vmpl = RMPFlags::try_from(vmpl_u8).expect("Invalid VMPL value");
+
+    // Remove VMPL 3 access to the custom1 ELF region
+    match rmp_adjust_range_4k(region, RMPFlags::VMPL3 | RMPFlags::NONE) {
+        Ok(_) => log::info!("Removed VMPL 3 access to custom1 ELF region"),
+        Err(e) => panic!("Failed to remove VMPL 3 access to custom1 ELF region: {e:#?}"),
+    }
+
+    // Give access to custom1 VMPL
+    match rmp_adjust_range_4k(region, vmpl| RMPFlags::RWX) {
+        Ok(_) => log::info!("Granted VMPL {vmpl_u8} access to region"),
+        Err(e) => panic!("Failed to grant VMPL {vmpl_u8} access to region: {e:#?}"),
+    }
 }
 
 fn print_launch_digest() {
